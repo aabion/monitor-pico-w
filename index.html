@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Sensores - Pico W</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .value-text {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #1E40AF; /* Azul oscuro */
+        }
+        .unit-text {
+            font-size: 1.5rem;
+            color: #6B7280; /* Gris */
+        }
+        .icon {
+            font-size: 3rem;
+            color: #3B82F6; /* Azul brillante */
+        }
+    </style>
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto px-4 py-8 md:py-12">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-900">Estación Meteorológica Pico W</h1>
+            <p class="mt-4 text-lg text-gray-600">Datos en tiempo real recibidos desde una Raspberry Pi Pico W.</p>
+        </header>
+
+        <main class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Tarjeta de Temperatura -->
+            <div class="card p-6 flex flex-col items-center justify-center text-center">
+                <div class="icon">🌡️</div>
+                <h2 class="text-2xl font-semibold mt-4">Temperatura</h2>
+                <div class="mt-2">
+                    <span id="temp-value" class="value-text">--</span>
+                    <span class="unit-text">°C</span>
+                </div>
+            </div>
+
+            <!-- Tarjeta de Humedad -->
+            <div class="card p-6 flex flex-col items-center justify-center text-center">
+                <div class="icon">💧</div>
+                <h2 class="text-2xl font-semibold mt-4">Humedad</h2>
+                <div class="mt-2">
+                    <span id="hum-value" class="value-text">--</span>
+                    <span class="unit-text">%</span>
+                </div>
+            </div>
+
+            <!-- Tarjeta de Presión -->
+            <div class="card p-6 flex flex-col items-center justify-center text-center">
+                <div class="icon">🌬️</div>
+                <h2 class="text-2xl font-semibold mt-4">Presión</h2>
+                <div class="mt-2">
+                    <span id="pres-value" class="value-text">--</span>
+                    <span class="unit-text">hPa</span>
+                </div>
+            </div>
+        </main>
+
+        <footer class="text-center mt-12">
+            <p class="text-gray-500">Última actualización: <span id="last-update">Nunca</span></p>
+        </footer>
+    </div>
+
+    <script>
+        // --- CONFIGURACIÓN ---
+        // Reemplaza estos valores con los de tu canal de ThingSpeak
+        const CHANNEL_ID = 'TU_CHANNEL_ID';
+        const READ_API_KEY = 'TU_READ_API_KEY';
+        const UPDATE_INTERVAL = 20000; // 20 segundos en milisegundos
+
+        // --- ELEMENTOS DEL DOM ---
+        const tempValueEl = document.getElementById('temp-value');
+        const humValueEl = document.getElementById('hum-value');
+        const presValueEl = document.getElementById('pres-value');
+        const lastUpdateEl = document.getElementById('last-update');
+
+        // --- LÓGICA ---
+        async function fetchData() {
+            // Construye la URL de la API de ThingSpeak para obtener el último dato
+            const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json?api_key=${READ_API_KEY}`;
+            
+            console.log('Buscando nuevos datos...');
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Error de red: ${response.status}`);
+                }
+                const data = await response.json();
+
+                // Actualiza los valores en la página si existen
+                if (data && data.field1) {
+                    tempValueEl.textContent = parseFloat(data.field1).toFixed(1);
+                }
+                if (data && data.field2) {
+                    humValueEl.textContent = parseFloat(data.field2).toFixed(1);
+                }
+                if (data && data.field3) {
+                    presValueEl.textContent = parseFloat(data.field3).toFixed(0);
+                }
+
+                // Actualiza la hora de la última actualización
+                const updateTime = new Date(data.created_at).toLocaleTimeString('es-ES');
+                lastUpdateEl.textContent = updateTime;
+                
+                console.log('Datos actualizados.');
+
+            } catch (error) {
+                console.error('No se pudieron obtener los datos:', error);
+                lastUpdateEl.textContent = `Error al cargar.`;
+            }
+        }
+
+        // Llama a la función una vez al cargar la página y luego cada X segundos
+        fetchData();
+        setInterval(fetchData, UPDATE_INTERVAL);
+    </script>
+
+</body>
+</html>
